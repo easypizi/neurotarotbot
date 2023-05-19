@@ -44,9 +44,10 @@ const gptCommandsMapping = {
   day: `Отвечай как специалист по картам Таро со стажем 40 лет. Задача: проведи онлайн-таро чтение на день, используя простую раскладку 'Одна карта'.  Порядок действий: 
   1) Вытяни для меня одну карту таро 
   2) Растолкуй эту карту. 
-  3) Я хочу чтобы твой ответ начинался с фразы: "Я провожу ритуал для очищения энергии и подключения к мудрости Таро. Я перемешиваю колоду, думая о твоем запросе. Карта, которую я выбрала для тебя сегодня:" - [название карты которую вытянул на русском и английском через /] и далее только описание карты, в контексте запроса “Карта дня”, которую ты вытянул. 
+  3) Я хочу чтобы твой ответ начинался с фразы: "Карта, которую я выбрала для тебя сегодня:" - [название карты которую вытянул на русском и английском через /] и далее только описание карты, в контексте запроса “Карта дня”, которую ты вытянул. 
   Используй больше слов “Сегодня”. 
   Никаких вводных фраз не нужно.`,
+
   week: `Отвечай как специалист по картам Таро со стажем 40 лет. 
   Задача: проведи онлайн-таро чтение на неделю, используя простую раскладку “3 карты”. Порядок действий:
   1) Вытяни для меня 3 карт таро
@@ -54,37 +55,22 @@ const gptCommandsMapping = {
   3) карта №2 середину недели
   4) Карта №3 конец недели
   5) Растолкуй эти карты по порядку от карты №1 к карте №3. 
-  Я хочу чтобы твой ответ начинался с фразы: "Я перемешал колоду таро и вытянул для вас три карты, которые дадут прогноз на грядущую неделю. “ваша карта на “период недели” - “название карты которую вытянул на русском и английском” и далее только описание карты, которую ты вытянул. В конце, суммируй значение всех карт в вывод, в контексте гадания на неделю. Никаких вводных или приветственных фраз не нужно.`,
+  Я хочу чтобы твой ответ начинался с фразы: “ваша карта на “период недели” - “название карты которую вытянул на русском и английском” и далее только описание карты, которую ты вытянул. В конце, суммируй значение всех карт в вывод, в контексте гадания на неделю. Никаких вводных или приветственных фраз не нужно.`,
+
   advice: `Отвечай как специалист по картам Таро со стажем 40 лет. 
   Задача: проведи онлайн-таро чтение “совет карт”, используя простую раскладку "Одна карта". 
   Порядок действий:
   Вытяни для меня одну карту таро
   Растолкуй эту карту как совет. 
-  Я хочу чтобы твой ответ начинался с фразы: "Я перемешиваю колоду Таро, сфокусировавшись на вашем вопросе. Помни, что карты открыты тому, кто обращается из нужды, а не из праздного любопытства". 
-  Карта которая вам выпала, на ваш вопрос - [название карты которую вытянул на русском и английским через /] и далее только описание карты как совета, которую ты вытянул. Никаких вводных фраз не нужно.`,
+  Я хочу чтобы твой ответ начинался с фразы: Карта которая вам выпала, на ваш вопрос - [название карты которую вытянул на русском и английским через /] и далее только описание карты как совета, которую ты вытянул. Никаких вводных фраз не нужно.`,
 };
 
-function sendMessage(msg, text) {
-  bot.sendMessage(msg.chat.id, text);
+async function sendMessage(msg, text, params) {
+  await bot.sendMessage(msg.chat.id, text, params);
 }
-
-// function getRandomWorkText() {
-//   let workImitationArray = [
-//     "Перевожу...",
-//     "Абажжи, ща всё будет...",
-//     "Ждите, ваш перевод обрабатывается...",
-//     "Опять переводить...",
-//     "Рад служить, кожаный мешок, твой перевод в пути...",
-//   ];
-
-//   const randomElement = Math.floor(Math.random() * workImitationArray.length);
-
-//   return workImitationArray[randomElement];
-// }
 
 async function getPrediction(msg, format) {
   try {
-    // sendMessage(msg, getRandomWorkText());
     const completion = await openai.createChatCompletion({
       model: "gpt-3.5-turbo",
       temperature: 0.5,
@@ -96,15 +82,15 @@ async function getPrediction(msg, format) {
       ],
     });
 
-    sendMessage(msg, `${completion.data.choices[0].message.content}`);
+    await sendMessage(msg, `${completion.data.choices[0].message.content}`);
   } catch (error) {
     if (error.response) {
-      sendMessage(
+      await sendMessage(
         msg,
         `Что-то пошло не так. Вот что именно: ${error.response.data}`
       );
     } else {
-      sendMessage(
+      await sendMessage(
         msg,
         `Что-то сильно сломалось. Вот что именно: ${error.message}. Перешли это сообщение создателю этого бота: t.me/ivan_tolstov`
       );
@@ -113,15 +99,112 @@ async function getPrediction(msg, format) {
 }
 
 bot.onText(/\/day/, async (ctx) => {
-  getPrediction(ctx, "day");
+  const inlineKeyboard = {
+    inline_keyboard: [
+      [
+        {
+          text: "Узнать карту",
+          callback_data: JSON.stringify({
+            command: "get_prediction",
+            data: {
+              type: "day",
+            },
+          }),
+        },
+      ],
+    ],
+  };
+
+  await sendMessage(
+    ctx,
+    `Сделайте глубокий вдох и выдох, сфокусируйтесь на вашем запросе и как будете готовы, нажмите “УЗНАТЬ КАРТУ"`,
+    {
+      reply_markup: inlineKeyboard,
+    }
+  );
 });
 
 bot.onText(/\/week/, async (ctx) => {
-  getPrediction(ctx, "week");
+  const inlineKeyboard = {
+    inline_keyboard: [
+      [
+        {
+          text: "УЗНАТЬ ПРОГНОЗ",
+          callback_data: JSON.stringify({
+            command: "get_prediction",
+            data: {
+              type: "week",
+            },
+          }),
+        },
+      ],
+    ],
+  };
+
+  await sendMessage(
+    ctx,
+    `Сделайте глубокий вдох и выдох, сфокусируйтесь на вашем запросе на неделю и как будете готовы, нажмите "УЗНАТЬ ПРОГНОЗ"`,
+    {
+      reply_markup: inlineKeyboard,
+    }
+  );
 });
 
 bot.onText(/\/advice/, async (ctx) => {
-  getPrediction(ctx, "advice");
+  const inlineKeyboard = {
+    inline_keyboard: [
+      [
+        {
+          text: "ПОЛУЧИТЬ СОВЕТ",
+          callback_data: JSON.stringify({
+            command: "get_prediction",
+            data: {
+              type: "advice",
+            },
+          }),
+        },
+      ],
+    ],
+  };
+
+  await sendMessage(
+    ctx,
+    `Перед тем, как мы начнем, я попрошу вас сконцентрироваться на своем вопросе и визуализировать его в своем уме. Сделайте глубокий вдох и выдох и как будете готовы, нажмите “ПОЛУЧИТЬ СОВЕТ”`,
+    {
+      reply_markup: inlineKeyboard,
+    }
+  );
 });
 
-bot.on("callback_query", async (query) => {});
+bot.on("callback_query", async (query) => {
+  const parsedQuery = JSON.parse(query.data);
+  const {
+    data: { type },
+    command,
+  } = parsedQuery;
+
+  if (command === "get_prediction") {
+    if (type === "day") {
+      bot.deleteMessage(query.message.chat.id, query.message.message_id);
+      await sendMessage(
+        query.message,
+        "Я провожу ритуал для очищения энергии и подключения к мудрости Таро. Я перемешиваю колоду, думая о твоем запросе..."
+      );
+      getPrediction(query.message, "day");
+    } else if (type === "week") {
+      bot.deleteMessage(query.message.chat.id, query.message.message_id);
+      await sendMessage(
+        query.message,
+        "Я перемешал колоду таро и вытянул для вас три карты, которые дадут прогноз на грядущую неделю. Мне нужно время, чтобы обдумать выпавший результат..."
+      );
+      getPrediction(query.message, "week");
+    } else if (type === "advice") {
+      bot.deleteMessage(query.message.chat.id, query.message.message_id);
+      await sendMessage(
+        query.message,
+        "Я перемешиваю колоду Таро, сфокусировавшись на вашем вопросе. Помни, что карты открыты тому, кто обращается из нужды, а не из праздного любопытства..."
+      );
+      getPrediction(query.message, "advice");
+    }
+  }
+});
