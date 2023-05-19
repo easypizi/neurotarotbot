@@ -1,5 +1,5 @@
 {
-  "name": "heroku-node-telegram-bot",
+  "name": "neuro_tarot_bot",
   "version": "1.0.3",
   "description": "neuro tarot bot",
   "main": "index.js",

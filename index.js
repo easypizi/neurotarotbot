@@ -1,9 +1,9 @@
-import { Configuration, OpenAIApi } from "openai";
 import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import TelegramBot from "node-telegram-bot-api";
+import { Configuration, OpenAIApi } from "openai";
 
 dotenv.config();
 
