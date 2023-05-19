@@ -3,7 +3,6 @@
   "version": "1.0.3",
   "description": "neuro tarot bot",
   "main": "index.js",
-  "type": "module",
   "scripts": {
     "start": "node dist/index.js",
     "build": "babel src -d dist/src && babel index.js -d dist ",
