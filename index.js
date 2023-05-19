@@ -19,7 +19,11 @@ if (process.env.NODE_ENV === "production") {
   const app = express();
   app.use(bodyParser.json());
   app.use(cors());
-  bot = new TelegramBot(token);
+  bot = new TelegramBot(token, {
+    autoStart: true,
+    onlyFirstMatch: true,
+    cancellation: true,
+  });
   bot.setWebHook(process.env.HEROKU_URL + bot.token);
   let server = app.listen(process.env.PORT, "0.0.0.0", () => {
     const host = server.address().address;
@@ -32,7 +36,12 @@ if (process.env.NODE_ENV === "production") {
   });
   console.log("Bot server started in the " + process.env.NODE_ENV + " mode");
 } else {
-  bot = new TelegramBot(token, { polling: true });
+  bot = new TelegramBot(token, {
+    polling: true,
+    autoStart: true,
+    onlyFirstMatch: true,
+    cancellation: true,
+  });
   console.log("Bot server started in the " + process.env.NODE_ENV + " mode");
 }
 
