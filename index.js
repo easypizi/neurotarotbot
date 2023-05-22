@@ -4,6 +4,8 @@ import cors from "cors";
 import bodyParser from "body-parser";
 import TelegramBot from "node-telegram-bot-api";
 import { Configuration, OpenAIApi } from "openai";
+import { getRandomCard, get3RandomCards } from "./src/helpers.js";
+import { imageMappings } from "./src/const.js";
 
 dotenv.config();
 
@@ -49,51 +51,75 @@ bot.on("polling_error", (error) => {
   console.log(error);
 });
 
-const gptCommandsMapping = {
-  day: `Отвечай как специалист по картам Таро со стажем 40 лет. Задача: проведи онлайн-таро чтение на день, используя простую раскладку 'Одна карта'.  Порядок действий: 
-  1) Вытяни для меня одну карту таро 
-  2) Растолкуй эту карту. 
-  3) Я хочу чтобы твой ответ начинался с фразы: "Карта, которую я выбрала для тебя сегодня:" - [название карты которую вытянул на русском и английском через /] и далее только описание карты, в контексте запроса “Карта дня”, которую ты вытянул. 
-  Используй больше слов “Сегодня”. 
-  Никаких вводных фраз не нужно.`,
+const gptCommandsMapping = (format, cards) => {
+  if (format !== "week") {
+    if (format === "advice") {
+      return `Отвечай как специалист по картам Таро со стажем 40 лет.
+      Задача: проведи онлайн-таро чтение “совет карт”, используя простую раскладку "Одна карта".
+      Порядок действий:
+      Растолкуй карту ${cards[0]} как совет.
+      Я хочу чтобы твой ответ начинался с фразы: Карта которая вам выпала, на ваш вопрос - ${cards[0]} и далее только описание карты как совета, которую ты вытянул. Никаких вводных фраз не нужно.`;
+    }
 
-  week: `Отвечай как специалист по картам Таро со стажем 40 лет. 
-  Задача: проведи онлайн-таро чтение на неделю, используя простую раскладку “3 карты”.
-  Порядок действий:
-  Вытяни для меня 3 карты таро и сделай их интерпретацию с учетом расклада “расклад на неделю”.
-  Я хочу чтобы твой ответ начинался с фразы: “ваши карты на загаданную неделю - “название карт которые вытянул на русском и английском” и далее только описание карт, которые ты вытянул. В конце, суммируй значение всех карт в вывод, в контексте гадания на неделю. Никаких вводных или приветственных фраз не нужно.`,
-
-  advice: `Отвечай как специалист по картам Таро со стажем 40 лет. 
-  Задача: проведи онлайн-таро чтение “совет карт”, используя простую раскладку "Одна карта". 
-  Порядок действий:
-  Вытяни для меня одну карту таро
-  Растолкуй эту карту как совет. 
-  Я хочу чтобы твой ответ начинался с фразы: Карта которая вам выпала, на ваш вопрос - [название карты которую вытянул на русском и английским через /] и далее только описание карты как совета, которую ты вытянул. Никаких вводных фраз не нужно.`,
+    return `Отвечай как специалист по картам Таро со стажем 40 лет. Задача: проведи онлайн-таро чтение на день, используя простую раскладку 'Одна карта'. Порядок действий:
+    1)Растолкуй карту: ${cards[0]}.
+    2)Я хочу чтобы твой ответ начинался с фразы: "Карта, которую я выбрала для тебя сегодня:" - ${cards[0]} и далее только описание карты, в контексте запроса “Карта дня”. Используй больше слов “Сегодня”. Никаких вводных фраз не нужно.`;
+  } else {
+    const stringCards = cards.join(", ");
+    return `Отвечай как специалист по картам Таро со стажем 40 лет.
+    Задача: проведи онлайн-таро чтение на неделю, используя простую раскладку “3 карты”. Порядок действий:
+    Cделай интерпретацию этих карт: ${stringCards} с учетом расклада “расклад на неделю”.
+    Я хочу чтобы твой ответ начинался с фразы: “ваши карты на загаданную неделю - ${stringCards} и далее только описание карт, которые ты вытянул. В конце, суммируй значение всех карт в вывод, в контексте гадания на неделю. Никаких вводных или приветственных фраз не нужно.`;
+  }
 };
 
 async function sendMessage(msg, text, params) {
   await bot.sendMessage(msg.chat.id, text, params);
 }
 
+async function sendSticker(msg, stickerId) {
+  await bot.sendSticker(msg.chat.id, stickerId);
+}
+
 async function getPrediction(msg, format) {
   try {
+    const cards = format === "week" ? get3RandomCards() : getRandomCard();
+
     const completion = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
+      model: "gpt-3.5-turbo-0301",
       temperature: 0.5,
       messages: [
         {
           role: "user",
-          content: gptCommandsMapping[format],
+          content: JSON.stringify(gptCommandsMapping(format, cards)),
         },
       ],
     });
+    if (cards) {
+      if (cards.length > 1) {
+        const imagesId = cards.map((card) => {
+          return imageMappings[card];
+        });
+        imagesId.forEach(async (stickerId) => {
+          if (stickerId) {
+            await sendSticker(msg, stickerId);
+          }
+        });
+        await sendMessage(msg, `${completion.data.choices[0].message.content}`);
+        return;
+      }
 
-    await sendMessage(msg, `${completion.data.choices[0].message.content}`);
+      const imageId = [imageMappings[cards]];
+      if (imageId[0]) {
+        await sendSticker(msg, imageId[0]);
+      }
+      await sendMessage(msg, `${completion.data.choices[0].message.content}`);
+    }
   } catch (error) {
     if (error.response) {
       await sendMessage(
         msg,
-        `Что-то пошло не так. Вот что именно: ${error.response.data}`
+        `Что-то пошло не так. Вот что именно: ${error.response.statusText}`
       );
     } else {
       await sendMessage(
@@ -194,21 +220,21 @@ bot.on("callback_query", async (query) => {
       bot.deleteMessage(query.message.chat.id, query.message.message_id);
       await sendMessage(
         query.message,
-        "Я провожу ритуал для очищения энергии и подключения к мудрости Таро. Я перемешиваю колоду, думая о твоем запросе..."
+        "Я провожу ритуал для очищения энергии и подключения к мудрости Таро. Я перемешиваю колоду, думая о твоем запросе... Мне нужно время, чтобы обдумать выпавший результат... Пожалуйста, подожди..."
       );
       getPrediction(query.message, "day");
     } else if (type === "week") {
       bot.deleteMessage(query.message.chat.id, query.message.message_id);
       await sendMessage(
         query.message,
-        "Я перемешал колоду таро и вытянул для вас три карты, которые дадут прогноз на грядущую неделю. Мне нужно время, чтобы обдумать выпавший результат..."
+        "Я перемешал колоду таро и вытянул для вас три карты, которые дадут прогноз на грядущую неделю. Мне нужно время, чтобы обдумать выпавший результат... Пожалуйста, подожди..."
       );
       getPrediction(query.message, "week");
     } else if (type === "advice") {
       bot.deleteMessage(query.message.chat.id, query.message.message_id);
       await sendMessage(
         query.message,
-        "Я перемешиваю колоду Таро, сфокусировавшись на вашем вопросе. Помни, что карты открыты тому, кто обращается из нужды, а не из праздного любопытства..."
+        "Я перемешиваю колоду Таро, сфокусировавшись на вашем вопросе. Помни, что карты открыты тому, кто обращается из нужды, а не из праздного любопытства... Мне нужно время, чтобы обдумать выпавший результат... Пожалуйста, подожди..."
       );
       getPrediction(query.message, "advice");
     }
@@ -218,4 +244,9 @@ bot.on("callback_query", async (query) => {
 bot.on("sticker", (msg) => {
   const chatId = msg.chat.id;
   bot.sendMessage(chatId, msg.sticker.file_id);
+
+  // bot.sendSticker(
+  //   chatId,
+  //   "CAACAgQAAxkBAAOEZGeV4GXox2_-Gj1Qx1dSfOgkDMgAAggKAAJ812lSo75ZY9uNm2AvBA"
+  // );
 });
