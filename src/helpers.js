@@ -1,14 +1,9 @@
 import { cards } from "./const.js";
 
-export const getRandomCard = () => {
-  const index = Math.floor(Math.random() * 8);
-  return [cards[index]];
-};
-
-export const get3RandomCards = () => {
+export const getRandomCards = (amount) => {
   let numbers = new Set();
 
-  while (numbers.size < 3) {
+  while (numbers.size < amount) {
     numbers.add(Math.floor(Math.random() * 78));
   }
 

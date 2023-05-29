@@ -237,3 +237,13 @@ export const imageMappings = {
   "Король Пентаклей / King of Pentacles":
     "CAACAgQAAxkBAAIBWmRrKjdtswABk-UCsnpWww0aBILzSQACCQgAAmsUaFLMDuxoUJZCLS8E",
 };
+
+export const cardsAmountMapping = {
+  week: 3,
+  day: 1,
+  advice: 1,
+  problem: 4,
+  money: 4,
+  love: 5,
+  future: 4,
+};
